@@ -38,6 +38,19 @@ for (const [sheet, cols] of Object.entries(required)) {
     errors.push(`Measures row ${row}: weight "${r.weight}" is not a number`);
 });
 
+// Every applies_to must match a sector or a ticker, otherwise the measure scores nothing
+const sectorsSet = new Set((sheets.Companies || []).map(r => String(r.sector).trim().toLowerCase()));
+const tickers = new Set((sheets.Companies || []).map(r => String(r.ticker).trim().toLowerCase()));
+const warnings = [];
+(sheets.Measures || []).forEach((r, i) => {
+  const to = String(r.applies_to).trim();
+  if (!to || sectorsSet.has(to.toLowerCase()) || tickers.has(to.toLowerCase())) return;
+  // ALL-CAPS short names are tickers: a missing one is an error. Anything else is a sector with no companies yet.
+  if (/^[A-Z0-9]{2,6}$/.test(to)) errors.push(`Measures row ${i + 2}: ticker "${to}" is not in Companies`);
+  else warnings.push(`Measures row ${i + 2}: sector "${to}" has no companies, so it scores nothing`);
+});
+if (warnings.length) console.warn(`Warnings (${warnings.length}):\n- ` + warnings.join("\n- "));
+
 if (errors.length) {
   console.error(`data.xlsx has ${errors.length} problem(s):\n- ` + errors.join("\n- "));
   process.exit(1);
